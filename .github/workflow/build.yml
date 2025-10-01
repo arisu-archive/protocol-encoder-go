@@ -1,0 +1,229 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  GO_VERSION: '1.23.x'
+  UNICORN_VERSION: 'v2.1.4'  # or a v2.x tag like '2.1.4'
+  # Architectures Unicorn should enable; adjust as needed
+  UNICORN_ARCHS: 'x86;aarch64;arm;mips;ppc;riscv;sparc;s390x;tricore'
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: amd64
+            platform: linux
+            ext: ""
+            cmake_gen: Ninja
+            cmake_arch: ""
+          - os: windows-latest
+            arch: amd64
+            platform: windows
+            ext: ".exe"
+            cmake_gen: "Visual Studio 17 2022"
+            cmake_arch: "x64"
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Use Unicorn tag
+      run: |
+        if [ -d "unicorn/.git" ]; then
+          git -C unicorn fetch --tags --force
+          git -C unicorn checkout "${{ env.UNICORN_VERSION }}"
+          git -C unicorn submodule update --init --recursive
+          git -C unicorn rev-parse --short HEAD
+        else
+          echo "unicorn submodule not found" && exit 1
+        fi
+      shell: bash
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Install build deps (Linux)
+      if: matrix.platform == 'linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends cmake ninja-build build-essential pkg-config
+      shell: bash
+
+    - name: Configure & build Unicorn (Linux)
+      if: matrix.platform == 'linux'
+      run: |
+        cmake -S unicorn -B build/unicorn -G "${{ matrix.cmake_gen }}" \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DUNICORN_BUILD_SHARED=ON \
+          -DUNICORN_ARCH="${{ env.UNICORN_ARCHS }}" \
+          -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/stage"
+        cmake --build build/unicorn --config Release -j$(nproc)
+        cmake --install build/unicorn --config Release
+      shell: bash
+
+    - name: Configure & build Unicorn (Windows)
+      if: matrix.platform == 'windows'
+      run: |
+        cmake -S unicorn -B build/unicorn -G "${{ matrix.cmake_gen }}" -A "${{ matrix.cmake_arch }}" ^
+          -DUNICORN_BUILD_SHARED=ON ^
+          -DUNICORN_ARCH="${{ env.UNICORN_ARCHS }}" ^
+          -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}\stage"
+        cmake --build build/unicorn --config Release -- /m
+        cmake --install build/unicorn --config Release
+      shell: cmd
+
+    - name: Apply patches
+      run: |
+        echo "Applying patches (if any)..."
+        if [ -d ".patches" ]; then
+          find .patches -type f -name "*.patch" -print0 | xargs -0 -I{} bash -c 'echo "-> {}"; git -C unicorn apply "{}" || echo "Patch failed (continuing): {}"'
+          # re-install after patches, in case headers/libs changed
+          if [ "${{ matrix.platform }}" = "linux" ]; then
+            cmake --build build/unicorn --config Release -j$(nproc)
+            cmake --install build/unicorn --config Release
+          else
+            cmake --build build/unicorn --config Release -- /m
+            cmake --install build/unicorn --config Release
+          fi
+        else
+          echo "No .patches directory."
+        fi
+      shell: bash
+
+    - name: Export cgo flags
+      id: cgo
+      run: |
+        if [ "${{ matrix.platform }}" = "linux" ]; then
+          echo "CGO_CFLAGS=-I${{ github.workspace }}/stage/include" >> $GITHUB_ENV
+          # Embed rpath to find libunicorn next to the binaries (../lib)
+          echo "CGO_LDFLAGS=-L${{ github.workspace }}/stage/lib -lunicorn -Wl,-rpath,\$$ORIGIN/lib" >> $GITHUB_ENV
+        else
+          # MSVC import library and headers in stage
+          echo "CGO_CFLAGS=/I${{ github.workspace }}\stage\include" >> $GITHUB_ENV
+          echo "CGO_LDFLAGS=/LIBPATH:${{ github.workspace }}\stage\lib unicorn.lib" >> $GITHUB_ENV
+        fi
+
+    - name: Build application
+      run: |
+        mkdir -p dist/lib
+        export CGO_ENABLED=1
+        export GOOS=${{ matrix.platform }}
+        export GOARCH=${{ matrix.arch }}
+        go build -v -trimpath -ldflags="-s -w" -o dist/protocol-encoder${{ matrix.ext }} ./main.go
+      shell: bash
+
+    - name: Stage Unicorn runtime libs
+      run: |
+        if [ "${{ matrix.platform }}" = "linux" ]; then
+          cp -a "${{ github.workspace }}/stage/lib/libunicorn.so"* dist/lib/ || true
+          cp -a "${{ github.workspace }}/stage/include" dist/include || true
+        else
+          # Windows places DLLs in bin and import libs in lib by default
+          if [ -f "${{ github.workspace }}\stage\bin\unicorn.dll" ]; then
+            cp "${{ github.workspace }}\stage\bin\unicorn.dll" dist\lib\ || true
+          elif [ -f "${{ github.workspace }}\stage\bin\libunicorn.dll" ]; then
+            cp "${{ github.workspace }}\stage\bin\libunicorn.dll" dist\lib\ || true
+          fi
+          if [ -f "${{ github.workspace }}\stage\lib\unicorn.lib" ]; then
+            cp "${{ github.workspace }}\stage\lib\unicorn.lib" dist\lib\ || true
+          fi
+          if [ -d "${{ github.workspace }}\stage\include" ]; then
+            mkdir -p dist\include
+            xcopy /E /I /Y "${{ github.workspace }}\stage\include" "dist\include"
+          fi
+        fi
+      shell: bash
+
+    - name: Package artifacts
+      run: |
+        if [ "${{ matrix.platform }}" = "windows" ]; then
+          7z a -tzip "protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.zip" ".\dist\protocol-encoder${{ matrix.ext }}"
+        else
+          tar -C dist -czf "protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz" "protocol-encoder${{ matrix.ext }}"
+        fi
+      shell: bash
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}
+        path: |
+          protocol-encoder-${{ matrix.ext }}.zip
+          protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
+        if-no-files-found: ignore
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Prepare Unicorn runtime for tests
+      run: |
+        mkdir -p stage/lib
+        # Prefer the linux-amd64 artifact’s lib for runtime
+        echo "Downloading linux-amd64 artifact for test runtime..."
+        gh run list --limit 1
+      shell: bash
+
+    - name: Run unit tests
+      env:
+        LD_LIBRARY_PATH: ${{ github.workspace }}/stage/lib
+      run: |
+        go test -v -race -coverprofile=coverage.out ./...
+      shell: bash
+
+    - name: Lint
+      run: |
+        go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+        golangci-lint run
+      shell: bash
+
+    - name: Upload coverage
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.out
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          artifacts/*/protocol-encoder-*.zip
+          artifacts/*/protocol-encoder-*.tar.gz
+        generate_release_notes: true
