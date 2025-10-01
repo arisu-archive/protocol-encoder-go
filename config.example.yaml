@@ -1,0 +1,6 @@
+# Encoder configuration
+binary: "libil2cpp.so"
+offset: 0xDEADBEEF
+
+# Performance settings
+pool_size: 1             # Emulator pool size (1 = single emulator, >1 = pool mode)

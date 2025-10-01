@@ -1,0 +1,13 @@
+diff --git a/qemu/accel/tcg/translate-all.c b/qemu/accel/tcg/translate-all.c
+index 71b6b2b1..f0cf9bb8 100644
+--- a/qemu/accel/tcg/translate-all.c
++++ b/qemu/accel/tcg/translate-all.c
+@@ -995,7 +995,7 @@ static inline void *alloc_code_gen_buffer(struct uc_struct *uc)
+         return NULL;
+     }
+ 
+-    return VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
++    return VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+ }
+ void free_code_gen_buffer(struct uc_struct *uc)
+ {
