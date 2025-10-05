@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/arisu-archive/protocol-encoder-go/pkg/encoder"
+	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/sirupsen/logrus"
@@ -27,42 +28,6 @@ type EncodeRequest struct {
 
 type EncodeResponse struct {
 	Result uint64 `json:"result"`
-}
-
-func encodeHandler(enc *encoder.Encoder, logger *logrus.Logger) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		var req EncodeRequest
-		if err := c.Bind(&req); err != nil {
-			return c.String(http.StatusBadRequest, err.Error())
-		}
-		result, err := enc.Encode(req.Protocol, req.Crc32)
-		if err != nil {
-			return c.String(http.StatusInternalServerError, err.Error())
-		}
-		return c.JSON(http.StatusOK, EncodeResponse{Result: result.ReturnValue})
-	}
-}
-
-func (s *WebServer) Serve(port string) error {
-	return s.app.Start(port)
-}
-
-func (s *WebServer) Shutdown(timeout time.Duration) error {
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-	<-quit
-
-	s.logger.Info("Shutting down server...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	if err := s.app.Shutdown(ctx); err != nil {
-		s.logger.WithError(err).Error("Server forced to shutdown")
-		return err
-	}
-	s.logger.Info("Server exited gracefully")
-	return nil
 }
 
 func setupWeb(enc *encoder.Encoder, logger *logrus.Logger) *WebServer {
@@ -90,6 +55,8 @@ func setupWeb(enc *encoder.Encoder, logger *logrus.Logger) *WebServer {
 		},
 	}))
 	app.Use(middleware.Recover())
+	app.Use(echoprometheus.NewMiddleware("encoder"))
+	app.Pre(middleware.RemoveTrailingSlash())
 
 	// Routes
 	handler := encodeHandler(enc, logger)
@@ -99,4 +66,40 @@ func setupWeb(enc *encoder.Encoder, logger *logrus.Logger) *WebServer {
 		enc:    enc,
 		logger: logger,
 	}
+}
+
+func encodeHandler(enc *encoder.Encoder, logger *logrus.Logger) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		var req EncodeRequest
+		if err := c.Bind(&req); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "invalid request").SetInternal(err)
+		}
+		result, err := enc.Encode(req.Protocol, req.Crc32)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to encode").SetInternal(err)
+		}
+		return c.JSON(http.StatusOK, EncodeResponse{Result: result.ReturnValue})
+	}
+}
+
+func (s *WebServer) Serve(port string) error {
+	return s.app.Start(port)
+}
+
+func (s *WebServer) Shutdown(timeout time.Duration) error {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+
+	s.logger.Info("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	if err := s.app.Shutdown(ctx); err != nil {
+		s.logger.WithError(err).Error("Server forced to shutdown")
+		return err
+	}
+	s.logger.Info("Server exited gracefully")
+	return nil
 }

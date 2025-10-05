@@ -33,6 +33,7 @@ func SetupEncoder(logger *logrus.Logger) (*encoder.Encoder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get offset: %w", err)
 	}
+	logger.WithField("offset", fmt.Sprintf("0x%X", offset)).Info("Using function offset")
 
 	enc, err := encoder.NewEncoder(&encoder.Config{
 		Binary:   viper.GetString("binary"),

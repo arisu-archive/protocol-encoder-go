@@ -10,7 +10,6 @@ import (
 type encodeCmd struct {
 	crc32    uint64
 	protocol uint64
-	json     bool
 }
 
 func NewCommand() *cobra.Command {
@@ -23,7 +22,6 @@ func NewCommand() *cobra.Command {
 	}
 	cmd.Flags().Uint64Var(&encodeCmd.crc32, "crc32", 0, "packet crc32 value")
 	cmd.Flags().Uint64Var(&encodeCmd.protocol, "protocol", 0xDEADBEEF, "protocol value to encode")
-	cmd.Flags().BoolVar(&encodeCmd.json, "json", false, "output as JSON")
 	return cmd
 }
 
@@ -40,8 +38,7 @@ func (e *encodeCmd) execute(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to encode: %w", err)
 	}
-	if e.json {
-		return outputResultsJSON(res)
-	}
-	return outputResultsText(res)
+	logger.WithField("encoded", res.ReturnValue).Info("Encoding successful")
+
+	return nil
 }

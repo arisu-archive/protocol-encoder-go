@@ -43,9 +43,10 @@ func NewEncoder(cfg *Config, opts ...Option) (*Encoder, error) {
 }
 
 func (e *Encoder) Encode(protocol, crc32 uint64) (*emulator.InvokeResponse, error) {
+	// __thiscall. But the funciton doesn't use 'this', so just pass 0.
 	return e.runner.Invoke(&emulator.InvokeRequest{
 		Offset: e.cfg.Offset,
-		Args:   []uint64{protocol, crc32},
+		Args:   []uint64{0, crc32, protocol},
 	})
 }
 
