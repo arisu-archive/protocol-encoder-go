@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/arisu-archive/protocol-encoder-go/pkg/encoder"
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -17,11 +18,11 @@ import (
 
 type WebServer struct {
 	app    *echo.Echo
-	enc    *encoder.Encoder
 	logger *logrus.Logger
 }
 
 type EncodeRequest struct {
+	Server   string `json:"server" validate:"required"`
 	Protocol uint64 `json:"protocol" validate:"required"`
 	Crc32    uint64 `json:"crc32" validate:"required"`
 }
@@ -30,8 +31,25 @@ type EncodeResponse struct {
 	Result uint64 `json:"result"`
 }
 
-func setupWeb(enc *encoder.Encoder, logger *logrus.Logger) *WebServer {
+type CustomValidator struct {
+	validator *validator.Validate
+}
+
+func newValidator() *CustomValidator {
+	return &CustomValidator{validator: validator.New()}
+}
+
+func (cv *CustomValidator) Validate(i interface{}) error {
+	if err := cv.validator.Struct(i); err != nil {
+		// Optionally, you could return the error to give each route more control over the status code
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	return nil
+}
+
+func setupWeb(encoders map[string]*encoder.Encoder, logger *logrus.Logger) *WebServer {
 	app := echo.New()
+	app.Validator = newValidator()
 	// Middleware
 	app.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		LogStatus:   true,
@@ -59,20 +77,29 @@ func setupWeb(enc *encoder.Encoder, logger *logrus.Logger) *WebServer {
 	app.Pre(middleware.RemoveTrailingSlash())
 
 	// Routes
-	handler := encodeHandler(enc, logger)
+	handler := encodeHandler(encoders, logger)
 	app.POST("/", handler)
 	return &WebServer{
 		app:    app,
-		enc:    enc,
 		logger: logger,
 	}
 }
 
-func encodeHandler(enc *encoder.Encoder, logger *logrus.Logger) echo.HandlerFunc {
+func encodeHandler(encoders map[string]*encoder.Encoder, logger *logrus.Logger) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		var req EncodeRequest
 		if err := c.Bind(&req); err != nil {
+			logger.WithError(err).Warn("failed to bind request")
 			return echo.NewHTTPError(http.StatusBadRequest, "invalid request").SetInternal(err)
+		}
+		if err := c.Validate(&req); err != nil {
+			logger.WithError(err).Warn("validation error")
+			return echo.NewHTTPError(http.StatusBadRequest, "invalid request").SetInternal(err)
+		}
+
+		enc, ok := encoders[req.Server]
+		if !ok {
+			return echo.NewHTTPError(http.StatusBadRequest, "server not found")
 		}
 		result, err := enc.Encode(req.Protocol, req.Crc32)
 		if err != nil {
