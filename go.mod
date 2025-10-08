@@ -2,7 +2,7 @@ module github.com/arisu-archive/protocol-encoder-go
 
 go 1.23.0
 
-toolchain go1.24.3
+toolchain go1.25.1
 
 require (
 	github.com/go-playground/validator/v10 v10.27.0
