@@ -1,6 +1,22 @@
-# Encoder configuration
-binary: "libil2cpp.so"
-offset: 0xDEADBEEF
+emulator:
+  pool_size: 10
+  timeout: 30            # Timeout in seconds for each encoding operation
 
-# Performance settings
-pool_size: 1             # Emulator pool size (1 = single emulator, >1 = pool mode)
+encoders:
+  japan:
+    binary: "libraries/japan/libil2cpp.so"
+    offset: 0                # Offset value (0 is valid)
+    aliases:
+      - "j"
+      - "jp"
+      - "jpn"
+    # pool_size: 10          # Optional: Override emulator pool_size
+    # timeout: 30            # Optional: Override emulator timeout
+  global:
+    binary: "libraries/global/libil2cpp.so"
+    offset: 0                # Offset value (0 is valid)
+    aliases:
+      - "g"
+      - "gl"
+    # pool_size: 10          # Optional: Override emulator pool_size
+    # timeout: 30            # Optional: Override emulator timeout
