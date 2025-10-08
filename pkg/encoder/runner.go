@@ -5,10 +5,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func newEmulatorRunner(cfg *Config, logger *logrus.Logger) (EmulatorRunner, error) {
-	// If pool size is less than 2, we use a single emulator
-	if cfg.PoolSize > 1 {
-		return emulator.NewPool(emulator.NewConfig(), logger, cfg.PoolSize)
+func newEmulatorRunner(commonCfg EmulatorConfig, encCfg EncoderConfig, logger *logrus.Logger) (EmulatorRunner, error) {
+	timeout := encCfg.Timeout
+	if timeout <= 0 {
+		timeout = commonCfg.Timeout
 	}
-	return emulator.New(emulator.NewConfig(), logger)
+	poolSize := encCfg.PoolSize
+	if poolSize <= 0 {
+		poolSize = commonCfg.PoolSize
+	}
+	emulatorConfig := emulator.NewConfig(emulator.WithTimeout(timeout))
+	// If pool size is less than 2, we use a single emulator
+	if poolSize > 1 {
+		return emulator.NewPool(emulatorConfig, logger, poolSize)
+	}
+	return emulator.New(emulatorConfig, logger)
 }
