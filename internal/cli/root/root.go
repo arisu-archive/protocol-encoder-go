@@ -2,7 +2,6 @@ package root
 
 import (
 	"io"
-	"log/slog"
 
 	"github.com/sirupsen/logrus"
 
@@ -29,7 +28,8 @@ func Execute(version string, exit func(int), in io.Reader, out, err io.Writer, a
 func (r *rootCmd) Execute(args []string) {
 	r.cmd.SetArgs(args)
 	if err := r.cmd.Execute(); err != nil {
-		slog.Error("protocol-encoder failed.", slog.Any("error", err))
+		logger := cli.GetLogger(r.cmd.Context())
+		logger.WithContext(r.cmd.Context()).WithError(err).Error("protocol-encoder failed.")
 		r.exit(1)
 	}
 }
@@ -63,38 +63,30 @@ func newRootCmd(version string, exit func(int), in io.Reader, out, err io.Writer
 				logger.SetFormatter(&logrus.JSONFormatter{})
 				logger.Debug("json log format enabled")
 			}
-			cmd.SetContext(cli.WithLogger(cmd.Context(), logger))
 
 			// Setup config
-			cli.InitConfig(root.cfgFile, logger)
+			cfg, err := cli.InitConfig(root.cfgFile, logger)
+			if err != nil {
+				logger.WithError(err).Fatal("failed to load config")
+			}
+			ctx := cli.WithConfig(cli.WithLogger(cmd.Context(), logger), cfg)
+			cmd.SetContext(ctx)
 		},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
 			logger := cli.GetLogger(cmd.Context())
 			logger.WithContext(cmd.Context()).Info("protocol-encoder completed successfully")
 		},
 	}
-	cmd.PersistentFlags().String("binary", "libil2cpp.so", "path to binary file")
-	cmd.PersistentFlags().Int("pool", 1, "emulator pool size for high throughput (1 = single emulator, >1 = pool mode)")
 	cmd.PersistentFlags().StringVarP(&root.cfgFile, "config", "c", "", "config file (default is ./config.yaml)")
 	cmd.PersistentFlags().BoolVarP(&root.verbose, "verbose", "v", false, "Enable verbose mode")
-	cmd.PersistentFlags().StringP("offset", "o", "0xDEADBEEF", "function offset (hex or decimal)")
 	cmd.PersistentFlags().BoolVar(&root.jsonFormat, "json", false, "output as JSON")
 
 	// Bind flags to viper
-	if err := viper.BindPFlag("offset", cmd.PersistentFlags().Lookup("offset")); err != nil {
-		panic("Failed to bind offset flag to viper")
-	}
 	if err := viper.BindPFlag("cfgFile", cmd.PersistentFlags().Lookup("config")); err != nil {
 		panic("Failed to bind config flag to viper")
 	}
 	if err := viper.BindPFlag("verbose", cmd.PersistentFlags().Lookup("verbose")); err != nil {
 		panic("Failed to bind verbose flag to viper")
-	}
-	if err := viper.BindPFlag("pool", cmd.PersistentFlags().Lookup("pool")); err != nil {
-		panic("Failed to bind pool flag to viper")
-	}
-	if err := viper.BindPFlag("binary", cmd.PersistentFlags().Lookup("binary")); err != nil {
-		panic("Failed to bind binary flag to viper")
 	}
 
 	cmd.AddCommand(serve.NewCommand())
