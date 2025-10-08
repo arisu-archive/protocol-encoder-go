@@ -3,6 +3,7 @@ package emulator
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -31,30 +32,52 @@ func NewPool(config *Config, logger *logrus.Logger, poolSize int) (*EmulatorPool
 	return pool, nil
 }
 
-// Initialize initializes all emulators in the pool
+// Initialize initializes all emulators in the pool concurrently
 func (p *EmulatorPool) Initialize() error {
-	for i := 0; i < cap(p.pool); i++ {
-		emu, err := New(p.config, p.logger)
-		if err != nil {
-			return err
-		}
+	poolSize := cap(p.pool)
+	errChan := make(chan error, poolSize)
+	var wg sync.WaitGroup
 
-		if err := emu.Initialize(); err != nil {
-			return err
-		}
+	// Initialize emulators concurrently
+	for i := 0; i < poolSize; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
 
-		p.pool <- emu
+			emu, err := New(p.config, p.logger)
+			if err != nil {
+				errChan <- fmt.Errorf("failed to create emulator %d: %w", index, err)
+				return
+			}
+
+			if err := emu.Initialize(); err != nil {
+				errChan <- fmt.Errorf("failed to initialize emulator %d: %w", index, err)
+				return
+			}
+
+			p.pool <- emu
+		}(i)
 	}
+
+	// Wait for all initializations to complete
+	wg.Wait()
+	close(errChan)
+
+	// Check for any errors
+	if err := <-errChan; err != nil {
+		return err
+	}
+
 	return nil
 }
 
-// Load loads a binary into all emulators in the pool
+// Load loads a binary into all emulators in the pool concurrently
 func (p *EmulatorPool) Load(binaryPath string) error {
 	poolSize := cap(p.pool)
 
 	// Collect all emulators
 	emulators := make([]*Emulator, poolSize)
-	for i := 0; i < poolSize; i++ {
+	for i := range poolSize {
 		select {
 		case emu := <-p.pool:
 			emulators[i] = emu
@@ -63,20 +86,32 @@ func (p *EmulatorPool) Load(binaryPath string) error {
 		}
 	}
 
-	// Load binary into each emulator
+	// Load binary into each emulator concurrently
+	errChan := make(chan error, poolSize)
+	var wg sync.WaitGroup
+
 	for i, emu := range emulators {
-		if err := emu.Load(binaryPath); err != nil {
-			// Return all emulators to pool before returning error
-			for j := 0; j <= i; j++ {
-				p.pool <- emulators[j]
+		wg.Add(1)
+		go func(index int, e *Emulator) {
+			defer wg.Done()
+			if err := e.Load(binaryPath); err != nil {
+				errChan <- fmt.Errorf("failed to load binary into emulator %d: %w", index, err)
 			}
-			return fmt.Errorf("failed to load binary into emulator %d: %w", i, err)
-		}
+		}(i, emu)
 	}
+
+	// Wait for all loads to complete
+	wg.Wait()
+	close(errChan)
 
 	// Return all emulators to pool
 	for _, emu := range emulators {
 		p.pool <- emu
+	}
+
+	// Check for any errors
+	if err := <-errChan; err != nil {
+		return err
 	}
 
 	return nil
@@ -89,7 +124,7 @@ func (p *EmulatorPool) Invoke(req *InvokeRequest) (*InvokeResponse, error) {
 	select {
 	case emu = <-p.pool:
 		// Got an emulator
-	case <-time.After(time.Second * 10): // Timeout after 10 seconds
+	case <-time.After(time.Second * p.config.Timeout):
 		return &InvokeResponse{
 			Success: false,
 			Error:   "timeout waiting for available emulator",
