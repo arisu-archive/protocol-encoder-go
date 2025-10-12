@@ -46,7 +46,7 @@ func InitConfig(cfgFile string, logger *logrus.Logger) (*encoder.Config, error) 
 }
 
 // SetupEncoder creates a new encoder with the given logger.
-func SetupEncoder(commonCfg encoder.EmulatorConfig, cfg encoder.EncoderConfig, logger *logrus.Logger) (*encoder.Encoder, error) {
+func SetupEncoder(commonCfg encoder.EmulatorConfig, cfg *encoder.EncoderConfig, logger *logrus.Logger) (*encoder.Encoder, error) {
 	// Create encoder config
 	enc, err := encoder.NewEncoder(commonCfg, cfg, logger)
 	if err != nil {

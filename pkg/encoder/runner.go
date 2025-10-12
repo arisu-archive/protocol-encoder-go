@@ -5,7 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func newEmulatorRunner(commonCfg EmulatorConfig, encCfg EncoderConfig, logger *logrus.Logger) (EmulatorRunner, error) {
+func newEmulatorRunner(commonCfg EmulatorConfig, encCfg *EncoderConfig, logger *logrus.Logger) (EmulatorRunner, error) {
 	timeout := encCfg.Timeout
 	if timeout <= 0 {
 		timeout = commonCfg.Timeout

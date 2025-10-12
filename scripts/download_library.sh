@@ -2,18 +2,17 @@
 
 # Get the package name from the first argument
 
-if [ -z "$1" ] || [ -z "$2" ]; then
-    echo "Usage: $0 <package-name> <output-path>"
+if [ -z "$1" ]; then
+    echo "Usage: $0 <package-name>"
     exit 1
 fi
 
 PACKAGE_NAME="$1"
-OUTPUT_PATH="$2"
-VERSION_URL="https://ba.pokeguy.dev/${PACKAGE_NAME}/version.txt"
-
-version=$(curl -s $VERSION_URL)
+OUTPUT_PATH="./libraries/$1/libil2cpp.so"
+VERSION_PATH="./libraries/$1/version.txt"
+version=$(cat "$VERSION_PATH" 2>/dev/null)
 if [ -z "$version" ]; then
-    echo "Failed to fetch version information from $VERSION_URL"
+    echo "Version file not found or empty for package $PACKAGE_NAME at $VERSION_PATH"
     exit 1
 fi
 

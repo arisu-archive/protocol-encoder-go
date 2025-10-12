@@ -4,8 +4,6 @@ services:
     container_name: protocol-encoder
     environment:
       - BA_PORT=8080
-      - BA_ENCODERS_JAPAN_OFFSET=49015212
-      - BA_ENCODERS_GLOBAL_OFFSET=103003304
     ports:
       - "8080:8080"
     restart: unless-stopped

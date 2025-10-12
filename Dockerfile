@@ -1,10 +1,6 @@
 # Builder stage
 FROM golang:1.25-alpine AS builder
 
-# Configure arguments
-ARG JAPAN_OFFSET
-ARG GLOBAL_OFFSET
-
 # Set the working directory inside the container
 WORKDIR /app
 
@@ -38,8 +34,8 @@ RUN go build -v -trimpath -ldflags="-s -w" -o protocol-encoder ./main.go
 
 # Download the library dependencies
 RUN chmod +x ./scripts/download_library.sh
-RUN ./scripts/download_library.sh "com.YostarJP.BlueArchive" "libraries/japan/libil2cpp.so"
-RUN ./scripts/download_library.sh "com.nexon.bluearchive" "libraries/global/libil2cpp.so"
+RUN ./scripts/download_library.sh "com.YostarJP.BlueArchive"
+RUN ./scripts/download_library.sh "com.nexon.bluearchive"
 
 # Runtime stage
 FROM alpine:latest
@@ -47,8 +43,8 @@ FROM alpine:latest
 WORKDIR /root/app
 
 COPY --from=builder /app/protocol-encoder .
-COPY --from=builder /app/libraries/japan/libil2cpp.so ./libraries/japan/libil2cpp.so
-COPY --from=builder /app/libraries/global/libil2cpp.so ./libraries/global/libil2cpp.so
+COPY --from=builder /app/libraries/com.YostarJP.BlueArchive/ ./libraries/com.YostarJP.BlueArchive/
+COPY --from=builder /app/libraries/com.nexon.bluearchive/ ./libraries/com.nexon.bluearchive/
 COPY --from=builder /app/config.example.yaml ./config.yaml
 COPY --from=builder /app/build/unicorn/libunicorn.so* /usr/local/lib/
 

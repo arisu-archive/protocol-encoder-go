@@ -15,11 +15,11 @@ type EmulatorRunner interface {
 }
 
 type Encoder struct {
-	cfg    EncoderConfig
+	cfg    *EncoderConfig
 	runner EmulatorRunner
 }
 
-func NewEncoder(commonCfg EmulatorConfig, cfg EncoderConfig, logger *logrus.Logger) (*Encoder, error) {
+func NewEncoder(commonCfg EmulatorConfig, cfg *EncoderConfig, logger *logrus.Logger) (*Encoder, error) {
 	runner, err := newEmulatorRunner(commonCfg, cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create emulator runner: %w", err)
@@ -27,7 +27,7 @@ func NewEncoder(commonCfg EmulatorConfig, cfg EncoderConfig, logger *logrus.Logg
 	if err := runner.Initialize(); err != nil {
 		return nil, fmt.Errorf("failed to initialize emulator runner: %w", err)
 	}
-	if err := runner.Load(cfg.Binary); err != nil {
+	if err := runner.Load(cfg.BinaryPath); err != nil {
 		return nil, fmt.Errorf("failed to load emulator runner: %w", err)
 	}
 	return &Encoder{runner: runner, cfg: cfg}, nil
@@ -36,7 +36,7 @@ func NewEncoder(commonCfg EmulatorConfig, cfg EncoderConfig, logger *logrus.Logg
 func (e *Encoder) Encode(protocol, crc32 uint64) (*emulator.InvokeResponse, error) {
 	// __thiscall. But the funciton doesn't use 'this', so just pass 0.
 	return e.runner.Invoke(&emulator.InvokeRequest{
-		Offset: e.cfg.Offset,
+		Offset: e.cfg.GetOffset(),
 		Args:   []uint64{0, crc32, protocol},
 	})
 }

@@ -4,8 +4,8 @@ emulator:
 
 encoders:
   japan:
-    binary: "libraries/japan/libil2cpp.so"
-    offset: 0                # Offset value (0 is valid)
+    binary: "libraries/com.YostarJP.BlueArchive/libil2cpp.so"
+    offset: "libraries/com.YostarJP.BlueArchive/offset.txt"
     aliases:
       - "j"
       - "jp"
@@ -13,8 +13,8 @@ encoders:
     # pool_size: 10          # Optional: Override emulator pool_size
     # timeout: 30            # Optional: Override emulator timeout
   global:
-    binary: "libraries/global/libil2cpp.so"
-    offset: 0                # Offset value (0 is valid)
+    binary: "libraries/com.nexon.bluearchive/libil2cpp.so"
+    offset: "libraries/com.nexon.bluearchive/offset.txt"
     aliases:
       - "g"
       - "gl"
