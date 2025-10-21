@@ -137,7 +137,8 @@ jobs:
         mkdir -p dist
         cp protocol-encoder${{ matrix.ext }} dist/
         cp build/unicorn/libunicorn.so* dist/
-        tar -C dist -czf "protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz" .
+        cp config.example.yaml dist/
+        tar -C dist -czf "protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz" *
       shell: bash
 
     - name: Package artifacts (Windows)
@@ -147,8 +148,8 @@ jobs:
         mkdir -p dist
         cp protocol-encoder${{ matrix.ext }} dist/
         cp build/unicorn/libunicorn.dll dist/ || cp build/unicorn/unicorn.dll dist/
-        cd dist
-        7z a -tzip "../protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.zip" .
+        cp config.example.yaml dist/
+        7z a "protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.zip" ./dist/*
 
     - name: Upload to Release
       uses: softprops/action-gh-release@v2
