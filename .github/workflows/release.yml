@@ -138,6 +138,7 @@ jobs:
         cp protocol-encoder${{ matrix.ext }} dist/
         cp build/unicorn/libunicorn.so* dist/
         cp config.example.yaml dist/
+        cp -r libraries dist/
         tar -C dist -czf "protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz" .
       shell: bash
 
@@ -149,6 +150,7 @@ jobs:
         cp protocol-encoder${{ matrix.ext }} dist/
         cp build/unicorn/libunicorn.dll dist/ || cp build/unicorn/unicorn.dll dist/
         cp config.example.yaml dist/
+        cp -r libraries dist/
         7z a "protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.zip" ./dist/*
 
     - name: Upload to Release
