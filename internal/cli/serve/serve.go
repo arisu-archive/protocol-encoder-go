@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/arisu-archive/protocol-encoder-go/internal/cli"
+	"github.com/arisu-archive/protocol-encoder-go/pkg/encoder"
 	"github.com/spf13/cobra"
 )
 
@@ -33,13 +34,28 @@ func NewCommand() *cobra.Command {
 func (s *serveCmd) execute(cmd *cobra.Command, args []string) error {
 	// Get the logger from context.
 	logger := cli.GetLogger(cmd.Context())
-	enc, err := cli.SetupEncoder(logger)
-	if err != nil {
-		return fmt.Errorf("failed to setup encoder: %w", err)
+	if logger == nil {
+		return fmt.Errorf("logger is not set in context")
 	}
-	defer enc.Close()
 
-	app := setupWeb(enc, logger)
+	// Get the config from context.
+	cfg := cli.GetConfig(cmd.Context())
+	if cfg == nil {
+		return fmt.Errorf("config is not set in context")
+	}
+
+	// Setup encoder
+	encoders := map[string]*encoder.Encoder{}
+	for name, encoderCfg := range cfg.Encoders {
+		enc, err := cli.SetupEncoder(cfg.Emulator, encoderCfg, logger)
+		if err != nil {
+			return fmt.Errorf("failed to setup encoder for %s: %w", name, err)
+		}
+		encoders[name] = enc
+		defer enc.Close()
+	}
+
+	app := setupWeb(encoders, logger)
 	go func() {
 		logger.WithField("port", s.port).Info("starting server")
 		if err := app.Serve(s.port); err != nil && err != http.ErrServerClosed {

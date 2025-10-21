@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"log/slog"
 	"runtime"
 	"time"
 
@@ -30,14 +29,8 @@ func RunE(verb string, fn func(cmd *cobra.Command, args []string) error) Command
 		if err = fn(cmd, args); err != nil {
 			return fmt.Errorf("%s failed after %s: %w", verb, time.Since(start).Truncate(time.Second), err)
 		}
-		slog.InfoContext(
-			cmd.Context(),
-			"completed",
-			"verb",
-			verb,
-			"duration",
-			time.Since(start).Truncate(time.Second),
-		)
+		logger := GetLogger(cmd.Context())
+		logger.WithField("duration", time.Since(start).Truncate(time.Millisecond)).Info(fmt.Sprintf("%s completed", verb))
 		return nil
 	}
 }

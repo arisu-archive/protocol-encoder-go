@@ -3,16 +3,18 @@ package emulator
 import (
 	"errors"
 	"fmt"
+	"time"
 )
 
 // Config holds the configuration for the ARM emulator
 type Config struct {
-	BaseAddr     uint64 `mapstructure:"base_addr" json:"base_addr"`
-	StackAddr    uint64 `mapstructure:"stack_addr" json:"stack_addr"`
-	StackSize    uint64 `mapstructure:"stack_size" json:"stack_size"`
-	ReturnAddr   uint64 `mapstructure:"return_addr" json:"return_addr"`
-	Architecture string `mapstructure:"architecture" json:"architecture"`
-	Mode         string `mapstructure:"mode" json:"mode"`
+	BaseAddr     uint64        `mapstructure:"base_addr" json:"base_addr"`
+	StackAddr    uint64        `mapstructure:"stack_addr" json:"stack_addr"`
+	StackSize    uint64        `mapstructure:"stack_size" json:"stack_size"`
+	ReturnAddr   uint64        `mapstructure:"return_addr" json:"return_addr"`
+	Architecture string        `mapstructure:"architecture" json:"architecture"`
+	Mode         string        `mapstructure:"mode" json:"mode"`
+	Timeout      time.Duration `mapstructure:"timeout" json:"timeout"`
 }
 
 // ConfigOption represents a configuration option
@@ -60,6 +62,13 @@ func WithMode(mode string) ConfigOption {
 	}
 }
 
+// WithTimeout sets the execution timeout
+func WithTimeout(timeout time.Duration) ConfigOption {
+	return func(c *Config) {
+		c.Timeout = timeout
+	}
+}
+
 // NewConfig creates a new configuration with options
 func NewConfig(options ...ConfigOption) *Config {
 	config := &Config{
@@ -69,6 +78,7 @@ func NewConfig(options ...ConfigOption) *Config {
 		ReturnAddr:   0xDEADBEEF,
 		Architecture: "arm64",
 		Mode:         "arm",
+		Timeout:      10 * time.Second,
 	}
 
 	for _, option := range options {

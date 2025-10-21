@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/unicorn-engine/unicorn/bindings/go/unicorn"
@@ -30,12 +29,10 @@ type InvokeRequest struct {
 
 // InvokeResponse represents the result of function invocation
 type InvokeResponse struct {
-	ReturnValue     uint64            `json:"return_value"`
-	FunctionAddress uint64            `json:"function_address"`
-	ExecutionTime   time.Duration     `json:"execution_time"`
-	Success         bool              `json:"success"`
-	Error           string            `json:"error,omitempty"`
-	Metadata        map[string]string `json:"metadata,omitempty"`
+	ReturnValue     uint64 `json:"return_value"`
+	FunctionAddress uint64 `json:"function_address"`
+	Success         bool   `json:"success"`
+	Error           string `json:"error,omitempty"`
 }
 
 // New creates a new emulator instance
@@ -110,8 +107,6 @@ func (e *Emulator) Invoke(req *InvokeRequest) (*InvokeResponse, error) {
 		return nil, NewEmulatorError(ErrInvocation, ErrBinaryNotLoaded)
 	}
 
-	startTime := time.Now()
-
 	// Check context cancellation
 	if req.Context != nil {
 		select {
@@ -137,13 +132,10 @@ func (e *Emulator) Invoke(req *InvokeRequest) (*InvokeResponse, error) {
 
 	// Start emulation
 	err := e.engine.Start(funcAddr, e.config.ReturnAddr)
-	executionTime := time.Since(startTime)
-
 	if err != nil {
 		e.logger.WithError(err).Error("Emulation failed")
 		return &InvokeResponse{
 			FunctionAddress: funcAddr,
-			ExecutionTime:   executionTime,
 			Success:         false,
 			Error:           err.Error(),
 		}, NewEmulatorError(ErrEmulationStart, err)
@@ -154,7 +146,6 @@ func (e *Emulator) Invoke(req *InvokeRequest) (*InvokeResponse, error) {
 	if err != nil {
 		return &InvokeResponse{
 			FunctionAddress: funcAddr,
-			ExecutionTime:   executionTime,
 			Success:         false,
 			Error:           err.Error(),
 		}, NewEmulatorError(ErrRegisterRead, err)
@@ -163,14 +154,12 @@ func (e *Emulator) Invoke(req *InvokeRequest) (*InvokeResponse, error) {
 	response := &InvokeResponse{
 		ReturnValue:     result,
 		FunctionAddress: funcAddr,
-		ExecutionTime:   executionTime,
 		Success:         true,
 	}
 
 	e.logger.WithFields(logrus.Fields{
 		"return_value":     result,
 		"function_address": funcAddr,
-		"execution_time":   executionTime,
 	}).Debug("Function invocation completed successfully")
 
 	return response, nil

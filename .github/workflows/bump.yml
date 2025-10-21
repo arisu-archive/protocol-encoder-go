@@ -1,0 +1,79 @@
+name: Update library
+on:
+  schedule:
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
+    inputs:
+      force_update:
+        type: boolean
+        required: false
+        description: 'Force update the library'
+
+env:
+  FORCE_UPDATE: ${{ inputs.force_update || 'false' }}
+
+jobs:
+  determine-version:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package_name:
+          - com.nexon.bluearchive
+          - com.YostarJP.BlueArchive
+    outputs:
+      skip: ${{ steps.get-version.outputs.skip }}
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          sparse-checkout: |
+            libraries/${{ matrix.package_name }}/version.txt
+            libraries/${{ matrix.package_name }}/offset.txt
+          sparse-checkout-cone-mode: false
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.25'
+      - name: Check the APK version
+        id: get-version
+        run: |
+          # If current version is the same as the latest version, exit
+          latest_version=$(curl https://ba.pokeguy.dev/${{ matrix.package_name }}/version.txt)
+          echo "::notice title=Latest APK Version::$latest_version"
+          # Exit 0 if env variable SKIP is true
+          if [ "${{ env.FORCE_UPDATE  }}" = "true" ]; then
+            echo "Forcing update..."
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "version=$latest_version" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          current_version=$(cat ./libraries/${{ matrix.package_name }}/version.txt)
+          if [ "$current_version" = "$latest_version" ]; then
+            echo "Current version is the same as the latest version: $current_version. Skipping..."
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "version=$latest_version" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # Update the version.txt file with the latest version
+          echo "version=$latest_version" >> $GITHUB_OUTPUT
+          echo "skip=false" >> $GITHUB_OUTPUT
+      - name: Update offset
+        if: steps.get-version.outputs.skip == 'false'
+        run: |
+          curl https://ba.pokeguy.dev/${{ matrix.package_name }}/decompiled/${{ steps.get-version.outputs.version }}/offset.txt > ./libraries/${{ matrix.package_name }}/offset.txt
+      - name: Create pull request
+        if: steps.get-version.outputs.skip == 'false'
+        uses: peter-evans/create-pull-request@v7.0.8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: 'chore(${{ matrix.package_name }}): bump libil2cpp.so version to ${{ steps.get-version.outputs.version }}'
+          body: '* Version: ${{ steps.get-version.outputs.version }}'
+          branch: chore/upgrade-${{ matrix.package_name }}-libil2cpp-${{ steps.get-version.outputs.version }}
+          labels: needs-review
+          commit-message: 'chore(${{ matrix.package_name }}): bump libil2cpp.so version to ${{ steps.get-version.outputs.version }}'
+          add-paths: |
+            libraries/${{ matrix.package_name }}/version.txt
+            libraries/${{ matrix.package_name }}/offset.txt

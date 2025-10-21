@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/arisu-archive/protocol-encoder-go/internal/emulator"
+	"github.com/sirupsen/logrus"
 )
 
 type EmulatorRunner interface {
@@ -14,38 +15,29 @@ type EmulatorRunner interface {
 }
 
 type Encoder struct {
-	cfg    *Config
+	cfg    *EncoderConfig
 	runner EmulatorRunner
 }
 
-func NewEncoder(cfg *Config, opts ...Option) (*Encoder, error) {
-	// Apply options to config
-	for _, opt := range opts {
-		opt(cfg)
-	}
-
-	// Validate config
-	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("failed to validate config: %w", err)
-	}
-
-	runner, err := newEmulatorRunner(cfg, cfg.Logger)
+func NewEncoder(commonCfg EmulatorConfig, cfg *EncoderConfig, logger *logrus.Logger) (*Encoder, error) {
+	runner, err := newEmulatorRunner(commonCfg, cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create emulator runner: %w", err)
 	}
 	if err := runner.Initialize(); err != nil {
 		return nil, fmt.Errorf("failed to initialize emulator runner: %w", err)
 	}
-	if err := runner.Load(cfg.Binary); err != nil {
+	if err := runner.Load(cfg.BinaryPath); err != nil {
 		return nil, fmt.Errorf("failed to load emulator runner: %w", err)
 	}
 	return &Encoder{runner: runner, cfg: cfg}, nil
 }
 
 func (e *Encoder) Encode(protocol, crc32 uint64) (*emulator.InvokeResponse, error) {
+	// __thiscall. But the funciton doesn't use 'this', so just pass 0.
 	return e.runner.Invoke(&emulator.InvokeRequest{
-		Offset: e.cfg.Offset,
-		Args:   []uint64{protocol, crc32},
+		Offset: e.cfg.GetOffset(),
+		Args:   []uint64{0, crc32, protocol},
 	})
 }
 
