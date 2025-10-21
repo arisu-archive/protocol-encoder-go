@@ -10,7 +10,7 @@ on:
 env:
   GO_VERSION: '1.25.x'
   UNICORN_VERSION: 'v2.1.4'
-  UNICORN_ARCHS: 'x86;aarch64;arm;mips;ppc;riscv;sparc;s390x;tricore'
+  UNICORN_ARCHS: 'aarch64'
 
 jobs:
   build:
