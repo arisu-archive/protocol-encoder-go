@@ -29,7 +29,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         submodules: recursive
         fetch-depth: 0
@@ -43,7 +43,7 @@ jobs:
       shell: bash
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: ${{ env.GO_VERSION }}
 
@@ -138,7 +138,7 @@ jobs:
         cp protocol-encoder${{ matrix.ext }} dist/
         cp build/unicorn/libunicorn.so* dist/
         cp config.example.yaml dist/
-        tar -C dist -czf "protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz" *
+        tar -C dist -czf "protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz" .
       shell: bash
 
     - name: Package artifacts (Windows)
