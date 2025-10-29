@@ -131,6 +131,13 @@ jobs:
         export GOARCH=${{ matrix.arch }}
         go build -v -trimpath -ldflags="-s -w" -o protocol-encoder${{ matrix.ext }} ./main.go
 
+    - name: Download libraries
+      run: |
+        chmod +x ./scripts/download_library.sh
+        ./scripts/download_library.sh "com.YostarJP.BlueArchive"
+        ./scripts/download_library.sh "com.nexon.bluearchive"
+      shell: bash
+
     - name: Package artifacts (Linux)
       if: matrix.platform == 'linux'
       run: |
