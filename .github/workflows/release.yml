@@ -68,6 +68,16 @@ jobs:
           p7zip
           make
 
+    - name: Apply patches (Linux)
+      if: matrix.platform == 'linux'
+      shell: bash
+      run: ./scripts/apply_patch.sh
+
+    - name: Apply patches (Windows)
+      if: matrix.platform == 'windows'
+      shell: msys2 {0}
+      run: ./scripts/apply_patch.sh
+
     - name: Configure & build Unicorn (Linux)
       if: matrix.platform == 'linux'
       run: |
@@ -87,16 +97,6 @@ jobs:
           -DUNICORN_BUILD_SHARED=ON \
           -DUNICORN_ARCH="${{ env.UNICORN_ARCHS }}"
         cmake --build build/unicorn --config Release
-
-    - name: Apply patches (Linux)
-      if: matrix.platform == 'linux'
-      shell: bash
-      run: ./scripts/apply_patch.sh
-
-    - name: Apply patches (Windows)
-      if: matrix.platform == 'windows'
-      shell: msys2 {0}
-      run: ./scripts/apply_patch.sh
 
     - name: Export cgo flags (Linux)
       if: matrix.platform == 'linux'
