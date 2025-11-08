@@ -1,5 +1,5 @@
 emulator:
-  pool_size: 10
+  pool_size: 3
   timeout: 30            # Timeout in seconds for each encoding operation
 
 encoders:
