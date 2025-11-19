@@ -63,6 +63,7 @@ jobs:
       - name: Update offset
         if: steps.get-version.outputs.skip == 'false'
         run: |
+          echo -n "${{steps.get-version.outputs.version}}" >> ./libraries/${{ matrix.package_name }}/offset.txt
           curl https://ba.pokeguy.dev/${{ matrix.package_name }}/decompiled/${{ steps.get-version.outputs.version }}/offset.txt > ./libraries/${{ matrix.package_name }}/offset.txt
       - name: Create pull request
         if: steps.get-version.outputs.skip == 'false'
