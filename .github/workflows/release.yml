@@ -2,12 +2,13 @@ name: Release
 
 on:
   push:
-    tags: [ 'v*' ]
+    tags: ["v*"]
 
 env:
-  GO_VERSION: '1.25.x'
-  UNICORN_VERSION: 'v2.1.4'
-  UNICORN_ARCHS: 'aarch64'
+  GO_VERSION: "1.25.x"
+  UNICORN_VERSION: "v2.1.4"
+  UNICORN_ARCHS: "aarch64"
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   release:
@@ -28,133 +29,183 @@ jobs:
             msystem: MINGW64
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v5
-      with:
-        submodules: recursive
-        fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
 
-    - name: Use Unicorn tag
-      run: |
-        git -C unicorn fetch --tags --force
-        git -C unicorn checkout "${{ env.UNICORN_VERSION }}"
-        git -C unicorn submodule update --init --recursive
-        git -C unicorn rev-parse --short HEAD
-      shell: bash
+      - name: Use Unicorn tag
+        run: |
+          git -C unicorn fetch --tags --force
+          git -C unicorn checkout "${{ env.UNICORN_VERSION }}"
+          git -C unicorn submodule update --init --recursive
+          git -C unicorn rev-parse --short HEAD
+        shell: bash
 
-    - name: Set up Go
-      uses: actions/setup-go@v6
-      with:
-        go-version: ${{ env.GO_VERSION }}
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
 
-    - name: Install build deps (Linux)
-      if: matrix.platform == 'linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends cmake ninja-build build-essential pkg-config
-      shell: bash
+      - name: Install build deps (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build build-essential pkg-config
+        shell: bash
 
-    - name: Setup MSYS2 (Windows)
-      if: matrix.platform == 'windows'
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: ${{ matrix.msystem }}
-        update: true
-        install: >-
-          mingw-w64-x86_64-gcc
-          mingw-w64-x86_64-cmake
-          mingw-w64-x86_64-ninja
-          git
-          p7zip
-          make
+      - name: Setup MSYS2 (Windows)
+        if: matrix.platform == 'windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            git
+            p7zip
+            make
 
-    - name: Configure & build Unicorn (Linux)
-      if: matrix.platform == 'linux'
-      run: |
-        cmake -S unicorn -B build/unicorn -G Ninja \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DUNICORN_BUILD_SHARED=ON \
-          -DUNICORN_ARCH="${{ env.UNICORN_ARCHS }}"
-        cmake --build build/unicorn --config Release -j$(nproc)
-      shell: bash
+      - name: Apply patches (Linux)
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: ./scripts/apply_patch.sh
 
-    - name: Configure & build Unicorn (Windows)
-      if: matrix.platform == 'windows'
-      shell: msys2 {0}
-      run: |
-        cmake -S unicorn -B build/unicorn -G Ninja \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DUNICORN_BUILD_SHARED=ON \
-          -DUNICORN_ARCH="${{ env.UNICORN_ARCHS }}"
-        cmake --build build/unicorn --config Release
+      - name: Apply patches (Windows)
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
+        run: ./scripts/apply_patch.sh
 
-    - name: Apply patches (Linux)
-      if: matrix.platform == 'linux'
-      shell: bash
-      run: ./scripts/apply_patch.sh
+      - name: Configure & build Unicorn (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          cmake -S unicorn -B build/unicorn -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUNICORN_BUILD_SHARED=ON \
+            -DUNICORN_ARCH="${{ env.UNICORN_ARCHS }}"
+          cmake --build build/unicorn --config Release -j$(nproc)
+        shell: bash
 
-    - name: Apply patches (Windows)
-      if: matrix.platform == 'windows'
-      shell: msys2 {0}
-      run: ./scripts/apply_patch.sh
+      - name: Configure & build Unicorn (Windows)
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
+        run: |
+          cmake -S unicorn -B build/unicorn -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUNICORN_BUILD_SHARED=ON \
+            -DUNICORN_ARCH="${{ env.UNICORN_ARCHS }}"
+          cmake --build build/unicorn --config Release
 
-    - name: Export cgo flags (Linux)
-      if: matrix.platform == 'linux'
-      run: |
-        echo "CGO_CFLAGS=-I${{ github.workspace }}/unicorn/include" >> $GITHUB_ENV
-        echo "CGO_LDFLAGS=-L${{ github.workspace }}/build/unicorn -lunicorn" >> $GITHUB_ENV
-      shell: bash
+      - name: Export cgo flags (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          echo "CGO_CFLAGS=-I${{ github.workspace }}/unicorn/include" >> $GITHUB_ENV
+          echo "CGO_LDFLAGS=-L${{ github.workspace }}/build/unicorn -lunicorn" >> $GITHUB_ENV
+        shell: bash
 
-    - name: Export cgo flags (Windows)
-      if: matrix.platform == 'windows'
-      shell: msys2 {0}
-      run: |
-        echo "CGO_CFLAGS=-I$(cygpath -m '${{ github.workspace }}')/unicorn/include" >> $GITHUB_ENV
-        echo "CGO_LDFLAGS=-L$(cygpath -m '${{ github.workspace }}')/build/unicorn -lunicorn" >> $GITHUB_ENV
+      - name: Export cgo flags (Windows)
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
+        run: |
+          echo "CGO_CFLAGS=-I$(cygpath -m '${{ github.workspace }}')/unicorn/include" >> $GITHUB_ENV
+          echo "CGO_LDFLAGS=-L$(cygpath -m '${{ github.workspace }}')/build/unicorn -lunicorn" >> $GITHUB_ENV
 
-    - name: Build application (Linux)
-      if: matrix.platform == 'linux'
-      run: |
-        export CGO_ENABLED=1
-        export GOOS=${{ matrix.platform }}
-        export GOARCH=${{ matrix.arch }}
-        export LD_LIBRARY_PATH="${{ github.workspace }}/build/unicorn:$LD_LIBRARY_PATH"
-        go build -v -trimpath -ldflags="-s -w" -o protocol-encoder${{ matrix.ext }} ./main.go
-      shell: bash
+      - name: Build application (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          export CGO_ENABLED=1
+          export GOOS=${{ matrix.platform }}
+          export GOARCH=${{ matrix.arch }}
+          export LD_LIBRARY_PATH="${{ github.workspace }}/build/unicorn:$LD_LIBRARY_PATH"
+          go build -v -trimpath -ldflags="-s -w" -o protocol-encoder${{ matrix.ext }} ./main.go
+        shell: bash
 
-    - name: Build application (Windows)
-      if: matrix.platform == 'windows'
-      shell: bash
-      run: |
-        export CGO_ENABLED=1
-        export GOOS=${{ matrix.platform }}
-        export GOARCH=${{ matrix.arch }}
-        go build -v -trimpath -ldflags="-s -w" -o protocol-encoder${{ matrix.ext }} ./main.go
+      - name: Build application (Windows)
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          export CGO_ENABLED=1
+          export GOOS=${{ matrix.platform }}
+          export GOARCH=${{ matrix.arch }}
+          go build -v -trimpath -ldflags="-s -w" -o protocol-encoder${{ matrix.ext }} ./main.go
 
-    - name: Package artifacts (Linux)
-      if: matrix.platform == 'linux'
-      run: |
-        mkdir -p dist
-        cp protocol-encoder${{ matrix.ext }} dist/
-        cp build/unicorn/libunicorn.so* dist/
-        cp config.example.yaml dist/
-        tar -C dist -czf "protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz" .
-      shell: bash
+      - name: Download libraries
+        run: |
+          chmod +x ./scripts/download_library.sh
+          ./scripts/download_library.sh "com.YostarJP.BlueArchive"
+          ./scripts/download_library.sh "com.nexon.bluearchive"
+        shell: bash
 
-    - name: Package artifacts (Windows)
-      if: matrix.platform == 'windows'
-      shell: msys2 {0}
-      run: |
-        mkdir -p dist
-        cp protocol-encoder${{ matrix.ext }} dist/
-        cp build/unicorn/libunicorn.dll dist/ || cp build/unicorn/unicorn.dll dist/
-        cp config.example.yaml dist/
-        7z a "protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.zip" ./dist/*
+      - name: Package artifacts (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          mkdir -p dist
+          cp protocol-encoder${{ matrix.ext }} dist/
+          cp build/unicorn/libunicorn.so* dist/
+          cp config.example.yaml dist/
+          cp -r libraries dist/
+          tar -C dist -czf "protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz" .
+        shell: bash
 
-    - name: Upload to Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: |
-          protocol-encoder-*.zip
-          protocol-encoder-*.tar.gz
-        fail_on_unmatched_files: false
+      - name: Package artifacts (Windows)
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
+        run: |
+          mkdir -p dist
+          cp protocol-encoder${{ matrix.ext }} dist/
+          cp build/unicorn/libunicorn.dll dist/ || cp build/unicorn/unicorn.dll dist/
+          cp config.example.yaml dist/
+          cp -r libraries dist/
+          7z a "protocol-encoder-${{ matrix.platform }}-${{ matrix.arch }}.zip" ./dist/*
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            protocol-encoder-*.zip
+            protocol-encoder-*.tar.gz
+          fail_on_unmatched_files: false
+
+  docker:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Use Unicorn tag
+        run: |
+          git -C unicorn fetch --tags --force
+          git -C unicorn checkout "${{ env.UNICORN_VERSION }}"
+          git -C unicorn submodule update --init --recursive
+          git -C unicorn rev-parse --short HEAD
+        shell: bash
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ vars.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
+            ${{ vars.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest

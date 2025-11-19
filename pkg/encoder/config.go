@@ -2,6 +2,7 @@ package encoder
 
 import (
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -29,7 +30,6 @@ type EncoderConfig struct {
 
 	parsedOffset uint64
 	offsetOnce   sync.Once
-	offsetErr    error
 }
 
 func (c *Config) Validate() error {
@@ -38,8 +38,12 @@ func (c *Config) Validate() error {
 }
 
 func parseOffsetFile(path string) (uint64, error) {
+	buf, err := os.ReadFile(path)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read offset file: %w", err)
+	}
 	var offset uint64
-	_, err := fmt.Sscanf(path, "%d", &offset)
+	_, err = fmt.Sscanf(string(buf), "0x%X", &offset)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse offset: %w", err)
 	}
