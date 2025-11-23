@@ -98,39 +98,15 @@ jobs:
             -DUNICORN_BUILD_SHARED=ON \
             -DUNICORN_ARCH="${{ env.UNICORN_ARCHS }}"
           cmake --build build/unicorn --config Release
-
-      - name: Export cgo flags (Linux)
-        if: matrix.platform == 'linux'
-        run: |
-          echo "CGO_CFLAGS=-I${{ github.workspace }}/unicorn/include" >> $GITHUB_ENV
-          echo "CGO_LDFLAGS=-L${{ github.workspace }}/build/unicorn -lunicorn" >> $GITHUB_ENV
-        shell: bash
-
-      - name: Export cgo flags (Windows)
-        if: matrix.platform == 'windows'
-        shell: msys2 {0}
-        run: |
-          echo "CGO_CFLAGS=-I$(cygpath -m '${{ github.workspace }}')/unicorn/include" >> $GITHUB_ENV
-          echo "CGO_LDFLAGS=-L$(cygpath -m '${{ github.workspace }}')/build/unicorn -lunicorn" >> $GITHUB_ENV
-
-      - name: Build application (Linux)
-        if: matrix.platform == 'linux'
+      - name: Build application
         run: |
           export CGO_ENABLED=1
           export GOOS=${{ matrix.platform }}
           export GOARCH=${{ matrix.arch }}
-          export LD_LIBRARY_PATH="${{ github.workspace }}/build/unicorn:$LD_LIBRARY_PATH"
+          export CGO_CFLAGS="-I${{ github.workspace }}/unicorn/include"
+          export CGO_LDFLAGS=-L${{ github.workspace }}/build/unicorn -lunicorn
           go build -v -trimpath -ldflags="-s -w" -o protocol-encoder${{ matrix.ext }} ./main.go
         shell: bash
-
-      - name: Build application (Windows)
-        if: matrix.platform == 'windows'
-        shell: bash
-        run: |
-          export CGO_ENABLED=1
-          export GOOS=${{ matrix.platform }}
-          export GOARCH=${{ matrix.arch }}
-          go build -v -trimpath -ldflags="-s -w" -o protocol-encoder${{ matrix.ext }} ./main.go
 
       - name: Download libraries
         run: |
