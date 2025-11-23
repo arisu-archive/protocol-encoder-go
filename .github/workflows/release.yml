@@ -103,8 +103,8 @@ jobs:
           export CGO_ENABLED=1
           export GOOS=${{ matrix.platform }}
           export GOARCH=${{ matrix.arch }}
-          export CGO_CFLAGS="-I${{ github.workspace }}/unicorn/include"
-          export CGO_LDFLAGS=-L${{ github.workspace }}/build/unicorn -lunicorn
+          export CGO_CFLAGS="-I./unicorn/include"
+          export CGO_LDFLAGS=-L./build/unicorn
           go build -v -trimpath -ldflags="-s -w" -o protocol-encoder${{ matrix.ext }} ./main.go
         shell: bash
 
@@ -181,6 +181,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          no-cache: true
           push: true
           tags: |
             ${{ vars.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
