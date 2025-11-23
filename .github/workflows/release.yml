@@ -104,7 +104,7 @@ jobs:
           export GOOS=${{ matrix.platform }}
           export GOARCH=${{ matrix.arch }}
           export CGO_CFLAGS="-I${{ github.workspace }}/unicorn/include"
-          export CGO_LDFLAGS=-L${{ github.workspace }}/build/unicorn -lunicorn
+          export CGO_LDFLAGS=-L${{ github.workspace }}/build/unicorn
           go build -v -trimpath -ldflags="-s -w" -o protocol-encoder${{ matrix.ext }} ./main.go
         shell: bash
 
