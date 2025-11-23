@@ -26,7 +26,7 @@ RUN cmake -S unicorn -B build/unicorn -G Ninja \
 
 # Setup CGO environment variables
 ENV CGO_CFLAGS="-I/app/build/unicorn/include" \
-    CGO_LDFLAGS="-L/app/build/unicorn -lunicorn" \
+    CGO_LDFLAGS="-L/app/build/unicorn" \
     CGO_ENABLED=1
 
 # Build the Go application
