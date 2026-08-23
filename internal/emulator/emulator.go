@@ -17,6 +17,7 @@ type Emulator struct {
 	binary       []byte
 	binaryLoaded bool
 	initialized  bool
+	layout       memoryLayout
 	mu           sync.RWMutex
 }
 
@@ -193,38 +194,47 @@ func (e *Emulator) initializeEngine() error {
 func (e *Emulator) setupMemory() error {
 	e.logger.Debug("Setting up memory regions")
 
-	// Load the ENTIRE binary exactly like the Python POC
-	binarySize := len(e.binary)
+	// The entire binary is mapped, so a large image can reach the configured
+	// stack address; resolveMemoryLayout moves the stack out of the way.
+	layout, err := resolveMemoryLayout(e.config.BaseAddr, uint64(len(e.binary)), e.config.StackAddr, e.config.StackSize)
+	if err != nil {
+		return NewEmulatorError(ErrMemoryMapping, err)
+	}
 
-	// Calculate mapped size (round up to page size 4KB)
-	mappedSize := uint64(((binarySize + 0xFFF) / 0x1000) * 0x1000)
+	if layout.Relocated {
+		e.logger.WithFields(logrus.Fields{
+			"binary_size":      len(e.binary),
+			"image_end":        e.config.BaseAddr + layout.ImageSize,
+			"configured_stack": e.config.StackAddr,
+			"relocated_stack":  layout.StackAddr,
+		}).Info("Stack relocated above the mapped image to avoid overlap")
+	}
 
 	e.logger.WithFields(logrus.Fields{
-		"binary_size": binarySize,
-		"mapped_size": mappedSize,
+		"binary_size": len(e.binary),
+		"mapped_size": layout.ImageSize,
 	}).Debug("Mapping ENTIRE binary")
 
 	// Map binary memory for the FULL size
-	err := e.engine.MemMap(e.config.BaseAddr, mappedSize)
-	if err != nil {
+	if err := e.engine.MemMap(e.config.BaseAddr, layout.ImageSize); err != nil {
 		return NewEmulatorError(ErrMemoryMapping, err)
 	}
 
 	// Map stack memory
-	err = e.engine.MemMap(e.config.StackAddr, e.config.StackSize)
-	if err != nil {
+	if err := e.engine.MemMap(layout.StackAddr, e.config.StackSize); err != nil {
 		return NewEmulatorError(ErrMemoryMapping, err)
 	}
 
 	// Write the ENTIRE binary to memory
-	err = e.engine.MemWrite(e.config.BaseAddr, e.binary)
-	if err != nil {
+	if err := e.engine.MemWrite(e.config.BaseAddr, e.binary); err != nil {
 		return NewEmulatorError(ErrMemoryWrite, err)
 	}
 
+	e.layout = layout
+
 	e.logger.WithFields(logrus.Fields{
 		"base_addr":  e.config.BaseAddr,
-		"stack_addr": e.config.StackAddr,
+		"stack_addr": layout.StackAddr,
 		"stack_size": e.config.StackSize,
 	}).Debug("Memory setup completed")
 
@@ -234,7 +244,7 @@ func (e *Emulator) setupMemory() error {
 // setupRegistersForInvoke configures the ARM64 registers for a specific function invocation
 func (e *Emulator) setupRegistersForInvoke(req *InvokeRequest) error {
 	// Set stack pointer
-	stackPointer := e.config.StackAddr + e.config.StackSize - 0x1000
+	stackPointer := e.layout.stackPointer(e.config.StackSize)
 	if err := e.engine.RegWrite(unicorn.ARM64_REG_SP, stackPointer); err != nil {
 		return NewEmulatorError(ErrRegisterWrite, err)
 	}

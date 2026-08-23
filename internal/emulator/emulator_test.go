@@ -136,3 +136,37 @@ func TestEmulator_Integration(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.True(t, result.Success)
 }
+
+// Regression test - a binary larger than the gap between the configured base
+// and stack addresses used to fail MemMap with UC_ERR_MAP.
+func TestEmulator_LoadBinaryLargerThanStackGap(t *testing.T) {
+	const binaryPath = "../../libraries/com.YostarJP.BlueArchive/libil2cpp.so"
+
+	if testing.Short() {
+		t.Skip("Skipping regression test - maps a multi-hundred megabyte binary")
+	}
+
+	info, err := os.Stat(binaryPath)
+	if os.IsNotExist(err) {
+		t.Skipf("Skipping regression test - %s not found", binaryPath)
+	}
+	require.NoError(t, err)
+
+	config := DefaultConfig()
+	if uint64(info.Size()) <= config.StackAddr-config.BaseAddr {
+		t.Skipf("Skipping regression test - %s (%d bytes) does not reach the configured stack address", binaryPath, info.Size())
+	}
+
+	logger := logrus.New()
+	logger.SetLevel(logrus.FatalLevel)
+
+	emu, err := New(config, logger)
+	require.NoError(t, err)
+	defer emu.Close()
+
+	require.NoError(t, emu.Initialize())
+	require.NoError(t, emu.Load(binaryPath))
+
+	assert.True(t, emu.layout.Relocated)
+	assert.Greater(t, emu.layout.StackAddr, config.BaseAddr+emu.layout.ImageSize)
+}
