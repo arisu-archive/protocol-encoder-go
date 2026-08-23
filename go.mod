@@ -12,7 +12,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
-	github.com/unicorn-engine/unicorn v0.0.0-20250909163825-8028ec436f2d
+	github.com/unicorn-engine/unicorn v0.0.0-20260217064959-7c5db94191de
 )
 
 require (
