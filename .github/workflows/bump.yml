@@ -27,7 +27,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          ref: dev
           sparse-checkout: |
             libraries/${{ matrix.package_name }}/version.txt
             libraries/${{ matrix.package_name }}/offset.txt
@@ -70,11 +69,11 @@ jobs:
         uses: peter-evans/create-pull-request@v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          title: 'chore(${{ matrix.package_name }}): bump libil2cpp.so version to ${{ steps.get-version.outputs.version }}'
+          title: 'feat(${{ matrix.package_name }}): bump libil2cpp.so version to ${{ steps.get-version.outputs.version }}'
           body: '* Version: ${{ steps.get-version.outputs.version }}'
-          branch: chore/upgrade-${{ matrix.package_name }}-libil2cpp-${{ steps.get-version.outputs.version }}
+          branch: feat/upgrade-${{ matrix.package_name }}-libil2cpp-${{ steps.get-version.outputs.version }}
           labels: needs-review
-          commit-message: 'chore(${{ matrix.package_name }}): bump libil2cpp.so version to ${{ steps.get-version.outputs.version }}'
+          commit-message: 'feat(${{ matrix.package_name }}): bump libil2cpp.so version to ${{ steps.get-version.outputs.version }}'
           add-paths: |
             libraries/${{ matrix.package_name }}/version.txt
             libraries/${{ matrix.package_name }}/offset.txt
