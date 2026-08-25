@@ -1,79 +1,127 @@
-name: Update library
+name: Update encoder tables
+
 on:
   schedule:
-    - cron: '0 */2 * * *'
+    - cron: "0 * * * 1-5"
+      timezone: "Asia/Singapore"
   workflow_dispatch:
-    inputs:
-      force_update:
-        type: boolean
-        required: false
-        description: 'Force update the library'
 
-env:
-  FORCE_UPDATE: ${{ inputs.force_update || 'false' }}
+permissions:
+  contents: read
+
+concurrency:
+  group: update-encoder-tables
+  cancel-in-progress: false
 
 jobs:
-  determine-version:
+  update:
+    name: Update ${{ matrix.go_package }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     strategy:
+      fail-fast: false
       matrix:
-        package_name:
-          - com.nexon.bluearchive
-          - com.YostarJP.BlueArchive
-    outputs:
-      skip: ${{ steps.get-version.outputs.skip }}
-      version: ${{ steps.get-version.outputs.version }}
+        include:
+          - android_package: com.nexon.bluearchive
+            go_package: arona
+            make_target: generate-arona
+            check_target: check-arona
+            output: pkg/encoder/arona/table_gen.go
+          - android_package: com.YostarJP.BlueArchive
+            go_package: plana
+            make_target: generate-plana
+            check_target: check-plana
+            output: pkg/encoder/plana/table_gen.go
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          sparse-checkout: |
-            libraries/${{ matrix.package_name }}/version.txt
-            libraries/${{ matrix.package_name }}/offset.txt
-          sparse-checkout-cone-mode: false
           fetch-depth: 0
-      - name: Setup Go
+          submodules: recursive
+
+      - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '^1.25'
-      - name: Check the APK version
-        id: get-version
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            tools/go.sum
+
+      - name: Download generator inputs
+        id: inputs
+        shell: bash
+        env:
+          ANDROID_PACKAGE: ${{ matrix.android_package }}
         run: |
-          # If current version is the same as the latest version, exit
-          latest_version=$(curl https://ba.pokeguy.dev/${{ matrix.package_name }}/version.txt)
-          echo "::notice title=Latest APK Version::$latest_version"
-          # Exit 0 if env variable SKIP is true
-          if [ "${{ env.FORCE_UPDATE  }}" = "true" ]; then
-            echo "Forcing update..."
-            echo "skip=false" >> $GITHUB_OUTPUT
-            echo "version=$latest_version" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          input_dir="libraries/${ANDROID_PACKAGE}"
+          mkdir -p "${input_dir}"
+          curl_args=(--fail --show-error --silent --location --connect-timeout 15 --max-time 900)
+
+          curl "${curl_args[@]}" \
+            "https://ba.pokeguy.dev/${ANDROID_PACKAGE}/version.txt" \
+            --output "${input_dir}/version.txt"
+          version="$(tr -d '\r\n' < "${input_dir}/version.txt")"
+          if [[ ! "${version}" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "Invalid version received for ${ANDROID_PACKAGE}: ${version}" >&2
+            exit 1
+          fi
+
+          curl "${curl_args[@]}" \
+            "https://ba.pokeguy.dev/${ANDROID_PACKAGE}/decompiled/${version}/offset.txt" \
+            --output "${input_dir}/offset.txt"
+          if [[ ! -s "${input_dir}/offset.txt" ]]; then
+            echo "skip=true" >> "${GITHUB_OUTPUT}"
+            echo "version=${version}" >> "${GITHUB_OUTPUT}"
+            echo "No dispatcher offset is available for ${ANDROID_PACKAGE} ${version}"
             exit 0
           fi
-          current_version=$(cat ./libraries/${{ matrix.package_name }}/version.txt)
-          if [ "$current_version" = "$latest_version" ]; then
-            echo "Current version is the same as the latest version: $current_version. Skipping..."
-            echo "skip=true" >> $GITHUB_OUTPUT
-            echo "version=$latest_version" >> $GITHUB_OUTPUT
-            exit 0
+
+          curl "${curl_args[@]}" \
+            "https://ba.pokeguy.dev/${ANDROID_PACKAGE}/libraries/${version}/libil2cpp.so" \
+            --output "${input_dir}/libil2cpp.so"
+          if [[ ! -s "${input_dir}/libil2cpp.so" ]]; then
+            echo "Downloaded library is empty for ${ANDROID_PACKAGE} ${version}" >&2
+            exit 1
           fi
-          # Update the version.txt file with the latest version
-          echo "version=$latest_version" >> $GITHUB_OUTPUT
-          echo "skip=false" >> $GITHUB_OUTPUT
-      - name: Update offset
-        if: steps.get-version.outputs.skip == 'false'
+
+          echo "skip=false" >> "${GITHUB_OUTPUT}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Install native build tools
+        if: steps.inputs.outputs.skip == 'false'
         run: |
-          echo -n "${{steps.get-version.outputs.version}}" > ./libraries/${{ matrix.package_name }}/version.txt
-          curl https://ba.pokeguy.dev/${{ matrix.package_name }}/decompiled/${{ steps.get-version.outputs.version }}/offset.txt > ./libraries/${{ matrix.package_name }}/offset.txt
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build build-essential
+
+      - name: Generate table
+        if: steps.inputs.outputs.skip == 'false'
+        run: make ${{ matrix.make_target }}
+
+      - name: Verify generated table
+        if: steps.inputs.outputs.skip == 'false'
+        run: make ${{ matrix.check_target }}
+
+      - name: Test runtime package
+        if: steps.inputs.outputs.skip == 'false'
+        run: go test ./pkg/encoder/${{ matrix.go_package }} -count=1
+
+      - name: Test generator tools
+        if: steps.inputs.outputs.skip == 'false'
+        run: make test-tools
+
       - name: Create pull request
-        if: steps.get-version.outputs.skip == 'false'
+        if: steps.inputs.outputs.skip == 'false'
         uses: peter-evans/create-pull-request@v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          title: 'feat(${{ matrix.package_name }}): bump libil2cpp.so version to ${{ steps.get-version.outputs.version }}'
-          body: '* Version: ${{ steps.get-version.outputs.version }}'
-          branch: feat/upgrade-${{ matrix.package_name }}-libil2cpp-${{ steps.get-version.outputs.version }}
+          title: "feat(${{ matrix.go_package }}): update encoder table to ${{ steps.inputs.outputs.version }}"
+          body: "Generated from ${{ matrix.android_package }} version ${{ steps.inputs.outputs.version }}."
+          branch: "feat/update-${{ matrix.go_package }}-table-${{ steps.inputs.outputs.version }}"
+          delete-branch: true
           labels: needs-review
-          commit-message: 'feat(${{ matrix.package_name }}): bump libil2cpp.so version to ${{ steps.get-version.outputs.version }}'
-          add-paths: |
-            libraries/${{ matrix.package_name }}/version.txt
-            libraries/${{ matrix.package_name }}/offset.txt
+          commit-message: "feat(${{ matrix.go_package }}): update encoder table to ${{ steps.inputs.outputs.version }}"
+          add-paths: ${{ matrix.output }}
