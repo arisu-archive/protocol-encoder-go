@@ -1,278 +1,104 @@
+<div align="center">
+
 # Protocol Encoder
 
-A high-performance protocol encoder built with Go and Unicorn Engine for encoding protocol data using ARM64 binary functions in a controlled emulation environment.
+[![Arona Version](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Farisu-archive%2Fprotocol-encoder-go%2Frefs%2Fheads%2Fmaster%2Fpkg%2Fencoder%2Farona%2Ftable_gen.go&search=tablegen-version%3A%20%28%5B0-9.%5D%2B%29&replace=v%241&style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjkiLz48cGF0aCBkPSJNMyAxMmgxOE0xMiAzYzQgNSA0IDEzIDAgMThNMTIgM2MtNCA1LTQgMTMgMCAxOCIvPjwvc3ZnPg%3D%3D&label=Arona&color=00ADD8)](pkg/encoder/arona/table_gen.go) [![Plana Version](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Farisu-archive%2Fprotocol-encoder-go%2Frefs%2Fheads%2Fmaster%2Fpkg%2Fencoder%2Fplana%2Ftable_gen.go&search=tablegen-version%3A%20%28%5B0-9.%5D%2B%29&replace=v%241&style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0zIDVoN3YxMGMwIDMtMiA0LTQgNHMtNC0xLTQtNE0xNCAxOVY1aDRjMyAwIDQgMiA0IDRzLTEgNC00IDRoLTQiLz48L3N2Zz4%3D&label=Plana&color=7d3cc8)](pkg/encoder/plana/table_gen.go)
+[![Test](https://img.shields.io/github/actions/workflow/status/arisu-archive/protocol-encoder-go/test.yml?branch=master&style=for-the-badge&logo=github&label=Test)](https://github.com/arisu-archive/protocol-encoder-go/actions/workflows/test.yml) [![Latest Release](https://img.shields.io/github/v/release/arisu-archive/protocol-encoder-go?style=for-the-badge&logo=github&label=Release)](https://github.com/arisu-archive/protocol-encoder-go/releases)
+[![Go Reference](https://img.shields.io/badge/Go-Reference-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://pkg.go.dev/github.com/arisu-archive/protocol-encoder-go) [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+
+**Pure Go protocol encoders for the Nexon and Japanese Yostar versions of Blue Archive.**
+
+[Features](#features) • [Installation](#installation) • [Quick start](#quick-start) • [Encoding behavior](#encoding-behavior) • [Updating generated tables](#updating-generated-tables) • [Documentation](#documentation) • [Testing](#testing) • [Related projects](#related-projects) • [License](#license)
+
+</div>
+
+---
 
 ## Features
 
-- **Protocol Encoding**: Encode protocol data using ARM64 binary functions
-- **CRC32 Integration**: Built-in CRC32 checksum support for protocol validation
-- **ARM64 Emulation**: Execute ARM64 encoding functions from binary files
-- **High-Performance Pool**: Concurrent execution with emulator pooling for massive throughput
-- **CLI Interface**: Command-line interface with JSON output support
-- **Configuration Management**: YAML configuration files and environment variables
-- **Structured Logging**: JSON-formatted logs with configurable verbosity
-- **Performance Optimized**: Built in Go for high performance and low latency
+- Separate typed encoders for the Nexon (`arona`) and Japanese Yostar (`plana`) clients.
+- Pure Go runtime with no Unicorn Engine, native library, or `libil2cpp.so` dependency.
+- Generated lookup tables derived from each game's latest dispatcher implementation.
+- CRC-aware encoding with behavior verified across every generated protocol and route.
+- Automatic pass-through for protocols absent from the generated override table.
+- Scheduled table updates as new game clients are published.
 
-## Quick Start
+## Installation
 
-### Prerequisites
-
-- Go 1.21 or later
-- Unicorn Engine development libraries
-- Your target binary file (`libil2cpp.so`)
-- Function offset address
-
-### Installation
+Install the latest release with Go modules:
 
 ```bash
-# Clone the repository
-git clone git@github.com:arisu-archive/protocol-encoder-go.git
-cd protocol-encoder-go
-
-# Install dependencies
-make install
-
-# Build the application
-make build
+go get github.com/arisu-archive/protocol-encoder-go@latest
 ```
 
-### Basic Usage
+Choose the encoder and protocol package for the matching game service:
 
-```bash
-# Encode protocol with default parameters
-./bin/protocol-encoder-go
+| Service | Encoder | Protocol definitions |
+| --- | --- | --- |
+| Nexon | `github.com/arisu-archive/protocol-encoder-go/pkg/encoder/arona` | `github.com/arisu-archive/arona-protos/protos` |
+| Japanese Yostar | `github.com/arisu-archive/protocol-encoder-go/pkg/encoder/plana` | `github.com/arisu-archive/plana-protos/protos` |
 
-# Encode specific protocol with CRC32
-./bin/protocol-encoder-go --protocol 0xDEADBEEF --crc32 0x12345678
+## Quick start
 
-# Output results in JSON format
-./bin/protocol-encoder-go --json --protocol 0x12345678
-
-# Use custom configuration file
-./bin/protocol-encoder-go --config custom-config.yaml --protocol 0xABCDEF
-```
-
-## Configuration
-
-### Command Line Options
-
-```bash
-Flags:
-      --binary string       path to binary file (default "libil2cpp.so")
-      --config string       config file (default is ./config.yaml)
-      --crc32 uint64        CRC32 checksum for protocol validation
-      --json                output results in JSON format
-      --offset string       function offset (hex or decimal) (default "0x6268754")
-      --pool-size int       emulator pool size for high throughput (1 = single emulator) (default 1)
-      --protocol uint64     protocol value to encode (default 0xDEADBEEF)
-  -v, --verbose             verbose output
-```
-
-### Configuration File
-
-Create a `config.yaml` file:
-
-```yaml
-# Protocol Encoder Configuration
-binary: "libil2cpp.so"
-offset: 0x6268754
-
-# Performance settings
-pool_size: 1             # Emulator pool size (1 = single emulator, >1 = pool mode)
-```
-
-## Protocol Encoding
-
-The encoder supports **flexible protocol encoding** through ARM64 function emulation:
-
-### Examples:
-
-```bash
-# Encode protocol with CRC32 checksum
-./bin/protocol-encoder-go --protocol 0xDEADBEEF --crc32 0x12345678
-
-# Encode with custom offset
-./bin/protocol-encoder-go --offset 0x6268754 --protocol 0xABCDEF
-
-# High-throughput encoding with pool
-./bin/protocol-encoder-go --pool-size 4 --protocol 0x12345678
-```
-
-### Parameter Mapping:
-- **X0**: Protocol value to encode
-- **X1**: CRC32 checksum for validation
-- **Return Value**: Encoded protocol result
-
-## Architecture
-
-```
-├── cmd/                 # Application entry point
-│   └── cli/            # CLI interface and configuration
-│       └── main.go     # Main application entry point
-├── internal/           # Internal packages
-│   └── emulator/       # Core emulation logic
-│       ├── config.go   # Emulator configuration
-│       ├── emulator.go # Main emulator implementation
-│       ├── errors.go   # Error definitions
-│       ├── emulator_test.go # Unit tests
-│       └── benchmark_test.go # Performance benchmarks
-├── pkg/                # Public packages
-│   └── encoder/        # Protocol encoder package
-│       ├── config.go   # Encoder configuration
-│       ├── engine.go   # Encoder implementation
-│       └── runner.go   # Emulator runner interface
-├── config.yaml         # Default configuration
-├── Makefile           # Build automation
-└── README.md          # Documentation
-```
-
-### Key Components
-
-- **Encoder**: High-level protocol encoding interface
-- **Emulator**: Core ARM64 emulation engine with memory management
-- **Config**: Type-safe configuration with validation
-- **Error Handling**: Custom error types with context
-- **CLI**: Cobra-based command-line interface
-- **Logging**: Structured logging with configurable levels
-
-## Development
-
-### Available Make Targets
-
-```bash
-make help           # Show available commands
-make build          # Build the application
-make test           # Run tests
-make test-coverage  # Run tests with coverage report
-make lint           # Run linter
-make fmt            # Format code
-make clean          # Clean build artifacts
-make dev-setup      # Set up development environment
-make release        # Full release build
-```
-
-### Running Tests
-
-```bash
-# Run all tests
-make test
-
-# Run tests with coverage
-make test-coverage
-
-# Run specific test
-go test -v ./internal/emulator -run TestNew
-```
-
-### Code Quality
-
-```bash
-# Format code
-make fmt
-
-# Run linter
-make lint
-
-# Full quality check
-make release
-```
-
-## API Reference
-
-### Encoder Interface
+Encode protocol identifiers using the package for the target service:
 
 ```go
-// Create new encoder instance
-encoder, err := encoder.NewEncoder(&encoder.Config{
-    Binary:   "libil2cpp.so",
-    Offset:   0x6268754,
-    PoolSize: 1,
-    Logger:   logger,
-})
+crc := uint32(0x12345678)
 
-// Encode protocol with CRC32
-result, err := encoder.Encode(protocol, crc32)
-
-// Clean up resources
-err = encoder.Close()
+nexonValue := arona.Encode(aronaprotos.Protocol_Account_Auth, crc)
+japanValue := plana.Encode(planaprotos.Protocol_Account_Auth, crc)
 ```
 
-### Configuration
+The protocol argument is intentionally typed by the corresponding generated protocol package, preventing accidental use of identifiers from the other service.
 
-```go
-// Encoder configuration
-config := &encoder.Config{
-    Binary:   "libil2cpp.so",
-    Offset:   0x6268754,
-    PoolSize: 1,
-    Logger:   logger,
-}
+## Encoding behavior
 
-// Validate configuration
-err := config.Validate()
-```
+`Encode` selects a generated value using the protocol identifier and `crc % 99`. CRC values with the same remainder therefore produce the same encoded value.
 
-### Encoding Result
+If a protocol is absent from the generated override table, `Encode` returns its `uint32` representation unchanged. This mirrors the game library's dispatcher behavior and allows newly introduced identity-mapped protocols to pass through safely.
 
-```go
-type InvokeResponse struct {
-    ReturnValue     uint64        `json:"return_value"`
-    FunctionAddress uint64        `json:"function_address"`
-    ExecutionTime   time.Duration `json:"execution_time"`
-    Success         bool          `json:"success"`
-    Error           string        `json:"error,omitempty"`
-}
-```
+The generated tables are compiled into the packages and are safe to use concurrently. Runtime consumers do not load game binaries or invoke Unicorn Engine.
 
-## Performance
+## Updating generated tables
 
-- **Memory Efficient**: Minimal memory allocation during protocol encoding
-- **Fast Startup**: Optimized initialization sequence for quick encoding
-- **Concurrent Safe**: Thread-safe design for parallel protocol encoding
-- **Resource Management**: Automatic cleanup and leak prevention
-- **High Throughput**: Emulator pooling for massive protocol encoding throughput
+The [table update workflow](.github/workflows/bump.yml) checks for new Nexon and Japanese Yostar clients hourly on weekdays. For each available update, it downloads the matching `libil2cpp.so` and dispatcher offset, regenerates and verifies the affected table, runs its tests, and opens a pull request.
 
-## Troubleshooting
-
-### Common Issues
-
-1. **Unicorn Engine Not Found**
-   ```bash
-   # Install Unicorn Engine development libraries
-   # Ubuntu/Debian:
-   sudo apt-get install libunicorn-dev
-   
-   # macOS:
-   brew install unicorn
-   ```
-
-2. **Binary File Not Found**
-   ```bash
-   # Ensure your binary file exists
-   ls -la libil2cpp.so
-   
-   # Or specify custom path
-   ./bin/protocol-encoder-go --binary /path/to/your/binary.so
-   ```
-
-### Debug Mode
+Table generation lives in the separate `tools` Go module. Unlike the runtime packages, the generator builds the repository's patched Unicorn Engine submodule to execute the ARM64 dispatcher in a controlled environment. Maintainers with the expected inputs under `libraries/` can regenerate either table with:
 
 ```bash
-# Enable verbose logging
-./bin/protocol-encoder-go --verbose
-
-# JSON output for programmatic processing
-./bin/protocol-encoder-go --json --verbose --protocol 0x12345678
+make generate-arona
+make generate-plana
 ```
+
+Generated files include the source client version, library digest, dispatcher offset, protocol-set digest, and table-body digest for reproducibility and cache validation. Do not edit them manually.
+
+## Documentation
+
+Browse the package references on pkg.go.dev:
+
+- [`encoder/arona`](https://pkg.go.dev/github.com/arisu-archive/protocol-encoder-go/pkg/encoder/arona) for the Nexon client.
+- [`encoder/plana`](https://pkg.go.dev/github.com/arisu-archive/protocol-encoder-go/pkg/encoder/plana) for the Japanese Yostar client.
+
+## Testing
+
+Test and vet the runtime library with:
+
+```bash
+make test-race
+make vet
+```
+
+Generator tests additionally require CMake, Ninja, a C compiler, and the Unicorn submodule:
+
+```bash
+make test-tools
+```
+
+## Related projects
+
+- [`arona-protos`](https://github.com/arisu-archive/arona-protos) provides Nexon protocol identifiers and models.
+- [`plana-protos`](https://github.com/arisu-archive/plana-protos) provides Japanese Yostar protocol identifiers and models.
 
 ## License
 
-[MIT License](LICENSE)
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Protocol Encoder is available under the [MIT License](LICENSE).
