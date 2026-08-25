@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.1](https://github.com/arisu-archive/protocol-encoder-go/compare/v2.0.0...v2.0.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **release:** retract invalid v2.0.0 ([#79](https://github.com/arisu-archive/protocol-encoder-go/issues/79)) ([cfd632e](https://github.com/arisu-archive/protocol-encoder-go/commit/cfd632e5629ae1f6c58229b3012e42051ce8e9ac))
+* **release:** use v2 module path ([#77](https://github.com/arisu-archive/protocol-encoder-go/issues/77)) ([bb08335](https://github.com/arisu-archive/protocol-encoder-go/commit/bb08335e347238e04f774c5430509984ef16e4f1))
+
 ## [2.0.0](https://github.com/arisu-archive/protocol-encoder-go/compare/v1.0.8...v2.0.0) (2026-08-25)
 
 
