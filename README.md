@@ -4,7 +4,7 @@
 
 [![Arona Version](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Farisu-archive%2Fprotocol-encoder-go%2Frefs%2Fheads%2Fmaster%2Fpkg%2Fencoder%2Farona%2Ftable_gen.go&search=tablegen-version%3A%20%28%5B0-9.%5D%2B%29&replace=v%241&style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjkiLz48cGF0aCBkPSJNMyAxMmgxOE0xMiAzYzQgNSA0IDEzIDAgMThNMTIgM2MtNCA1LTQgMTMgMCAxOCIvPjwvc3ZnPg%3D%3D&label=Arona&color=00ADD8)](pkg/encoder/arona/table_gen.go) [![Plana Version](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Farisu-archive%2Fprotocol-encoder-go%2Frefs%2Fheads%2Fmaster%2Fpkg%2Fencoder%2Fplana%2Ftable_gen.go&search=tablegen-version%3A%20%28%5B0-9.%5D%2B%29&replace=v%241&style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0zIDVoN3YxMGMwIDMtMiA0LTQgNHMtNC0xLTQtNE0xNCAxOVY1aDRjMyAwIDQgMiA0IDRzLTEgNC00IDRoLTQiLz48L3N2Zz4%3D&label=Plana&color=7d3cc8)](pkg/encoder/plana/table_gen.go)
 [![Test](https://img.shields.io/github/actions/workflow/status/arisu-archive/protocol-encoder-go/test.yml?branch=master&style=for-the-badge&logo=github&label=Test)](https://github.com/arisu-archive/protocol-encoder-go/actions/workflows/test.yml) [![Latest Release](https://img.shields.io/github/v/release/arisu-archive/protocol-encoder-go?style=for-the-badge&logo=github&label=Release)](https://github.com/arisu-archive/protocol-encoder-go/releases)
-[![Go Reference](https://img.shields.io/badge/Go-Reference-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://pkg.go.dev/github.com/arisu-archive/protocol-encoder-go) [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+[![Go Reference](https://img.shields.io/badge/Go-Reference-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://pkg.go.dev/github.com/arisu-archive/protocol-encoder-go/v2) [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
 **Pure Go protocol encoders for the Nexon and Japanese Yostar versions of Blue Archive.**
 
@@ -28,15 +28,15 @@
 Install the latest release with Go modules:
 
 ```bash
-go get github.com/arisu-archive/protocol-encoder-go@latest
+go get github.com/arisu-archive/protocol-encoder-go/v2@latest
 ```
 
 Choose the encoder and protocol package for the matching game service:
 
 | Service | Encoder | Protocol definitions |
 | --- | --- | --- |
-| Nexon | `github.com/arisu-archive/protocol-encoder-go/pkg/encoder/arona` | `github.com/arisu-archive/arona-protos/protos` |
-| Japanese Yostar | `github.com/arisu-archive/protocol-encoder-go/pkg/encoder/plana` | `github.com/arisu-archive/plana-protos/protos` |
+| Nexon | `github.com/arisu-archive/protocol-encoder-go/v2/pkg/encoder/arona` | `github.com/arisu-archive/arona-protos/protos` |
+| Japanese Yostar | `github.com/arisu-archive/protocol-encoder-go/v2/pkg/encoder/plana` | `github.com/arisu-archive/plana-protos/protos` |
 
 ## Quick start
 
@@ -76,8 +76,8 @@ Generated files include the source client version, library digest, dispatcher of
 
 Browse the package references on pkg.go.dev:
 
-- [`encoder/arona`](https://pkg.go.dev/github.com/arisu-archive/protocol-encoder-go/pkg/encoder/arona) for the Nexon client.
-- [`encoder/plana`](https://pkg.go.dev/github.com/arisu-archive/protocol-encoder-go/pkg/encoder/plana) for the Japanese Yostar client.
+- [`encoder/arona`](https://pkg.go.dev/github.com/arisu-archive/protocol-encoder-go/v2/pkg/encoder/arona) for the Nexon client.
+- [`encoder/plana`](https://pkg.go.dev/github.com/arisu-archive/protocol-encoder-go/v2/pkg/encoder/plana) for the Japanese Yostar client.
 
 ## Testing
 
