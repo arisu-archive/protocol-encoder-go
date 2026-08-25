@@ -4,6 +4,8 @@ go 1.25.0
 
 toolchain go1.26.2
 
+retract v2.0.0 // Published without the required /v2 module path.
+
 require (
 	github.com/arisu-archive/arona-protos v1.8.0
 	github.com/arisu-archive/plana-protos v1.6.0
