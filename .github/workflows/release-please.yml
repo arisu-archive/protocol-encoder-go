@@ -15,6 +15,31 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Validate Go module major version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(jq -er '.["."]' .release-please-manifest.json)"
+          if [[ ! "${version}" =~ ^([0-9]+)\. ]]; then
+            echo "Invalid release version: ${version}" >&2
+            exit 1
+          fi
+
+          major="${BASH_REMATCH[1]}"
+          module="$(awk '$1 == "module" { print $2; exit }' go.mod)"
+          expected="github.com/arisu-archive/protocol-encoder-go"
+          if (( major >= 2 )); then
+            expected="${expected}/v${major}"
+          fi
+
+          if [[ "${module}" != "${expected}" ]]; then
+            echo "Release ${version} requires module ${expected}; found ${module}" >&2
+            exit 1
+          fi
+
       - name: Run release-please
         uses: googleapis/release-please-action@v4
         with:
