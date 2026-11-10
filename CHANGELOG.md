@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.1](https://github.com/arisu-archive/protocol-encoder-go/compare/v2.3.0...v2.3.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **bump:** correct URL paths for downloading resources ([2dcb80b](https://github.com/arisu-archive/protocol-encoder-go/commit/2dcb80b52eaf5767f60571a259ccd79c8226dda9))
+
 ## [2.3.0](https://github.com/arisu-archive/protocol-encoder-go/compare/v2.2.0...v2.3.0) (2026-11-01)
 
 
