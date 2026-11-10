@@ -71,7 +71,7 @@ jobs:
           fi
 
           curl "${curl_args[@]}" \
-            "https://ba.pokeguy.dev/${ANDROID_PACKAGE}/decompiled/${version}/offset.txt" \
+            "https://ba.pokeguy.dev/${ANDROID_PACKAGE}/${version}/offset.txt" \
             --output "${input_dir}/offset.txt"
           if [[ ! -s "${input_dir}/offset.txt" ]]; then
             echo "skip=true" >> "${GITHUB_OUTPUT}"
@@ -81,7 +81,7 @@ jobs:
           fi
 
           curl "${curl_args[@]}" \
-            "https://ba.pokeguy.dev/${ANDROID_PACKAGE}/libraries/${version}/libil2cpp.so" \
+            "https://ba.pokeguy.dev/${ANDROID_PACKAGE}/${version}/libil2cpp.so" \
             --output "${input_dir}/libil2cpp.so"
           if [[ ! -s "${input_dir}/libil2cpp.so" ]]; then
             echo "Downloaded library is empty for ${ANDROID_PACKAGE} ${version}" >&2
