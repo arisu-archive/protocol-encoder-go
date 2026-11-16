@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.4.0](https://github.com/arisu-archive/protocol-encoder-go/compare/v2.3.0...v2.4.0) (2026-11-16)
+
+
+### Features
+
+* **arona:** update encoder table to 1.96.474931 ([#87](https://github.com/arisu-archive/protocol-encoder-go/issues/87)) ([234ae89](https://github.com/arisu-archive/protocol-encoder-go/commit/234ae89f97db17253510dafc9415c0bf55102074))
+* **plana:** update encoder table to 1.69.428359 ([#88](https://github.com/arisu-archive/protocol-encoder-go/issues/88)) ([e0bf89d](https://github.com/arisu-archive/protocol-encoder-go/commit/e0bf89d078a564e6e804fb787b071e2cbc626fde))
+
+
+### Bug Fixes
+
+* **bump:** correct URL paths for downloading resources ([2dcb80b](https://github.com/arisu-archive/protocol-encoder-go/commit/2dcb80b52eaf5767f60571a259ccd79c8226dda9))
+
 ## [2.3.0](https://github.com/arisu-archive/protocol-encoder-go/compare/v2.2.0...v2.3.0) (2026-11-01)
 
 
