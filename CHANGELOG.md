@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0](https://github.com/arisu-archive/protocol-encoder-go/compare/v2.4.0...v2.5.0) (2026-11-22)
+
+
+### Features
+
+* **plana:** update encoder table to 1.74.471552 ([#89](https://github.com/arisu-archive/protocol-encoder-go/issues/89)) ([d9014ba](https://github.com/arisu-archive/protocol-encoder-go/commit/d9014ba032e4e95e71045c38bdf10958b006cd84))
+
 ## [2.4.0](https://github.com/arisu-archive/protocol-encoder-go/compare/v2.3.0...v2.4.0) (2026-11-16)
 
 
